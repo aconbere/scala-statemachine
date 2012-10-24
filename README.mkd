@@ -1,0 +1,64 @@
+# Tiny State Machine Trait
+
+This is a tiny state machine with a single public method `trigger`, which takes an `Event` which is an edge between two states, and will progress the current state into the next.
+
+More than anything this is an attempt to put down on paper the pattern I'm using elsewhere.
+
+### Example
+
+Below I will build a classic State Machine:
+
+```scala
+import com.conbere.statemachine._
+```
+
+The "Turnstile" which has two states:
+
+```scala
+case object Locked extends State
+case object UnLocked extends State
+```
+
+When it's locked, the machine sit's waiting for someone to feed it coins.
+
+```scala
+case class Coin(val value: Int) extends Event
+```
+
+If the coins exceed the cost of the turnstile it can be `Push`ed, the person can pass, and it will return to `Locked`.
+
+```
+case object Push extends Event
+```
+
+
+Let's look at the code given those states and events:
+
+```scala
+class Turnstile(val value: Int, val state: State)
+extends StateMachine[Turnstile] {
+  def this() = this(0, Locked)
+
+  val requiredPayment = 10
+
+  override def defaultTransition: Transition = {
+    case _ => this
+  }
+
+  val transitions: Transition = {
+    case (Locked, Coin(v)) =>
+      if (value + v >= requiredPayment)
+        new Turnstile(0, UnLocked)
+      else
+        new Turnstile(value + v, state)
+    case (Locked, Push) =>
+      this
+    case (UnLocked, Push) =>
+      new Turnstile()
+    case (UnLocked, Coin(_)) =>
+      this
+  }
+
+  override def toString = "Turnstile: %s: %s".format(state, value)
+}
+```
